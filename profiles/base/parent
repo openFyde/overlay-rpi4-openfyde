@@ -1,0 +1,3 @@
+baseboard-rpi3:base
+rpi4:base
+chromiumos:features/selinux
