@@ -5,8 +5,8 @@
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
-CROS_WORKON_COMMIT="7ada2ddd6dbb3520842842753ee5a9229b772f2c"
-CROS_WORKON_TREE=("17e0c199bc647ae6a33554fd9047fa23ff9bfd7e" "0a09c0ca8605b3db2086c89f40dc3727296471d5" "3443059b921e08f2e9685d3ece17800bca409341" "e7dba8c91c1f3257c34d4a7ffff0ea2537aeb6bb")
+CROS_WORKON_COMMIT="6e4c52d607067c63a3e5b978926680d6ce5d9c51"
+CROS_WORKON_TREE=("d897a7a44e07236268904e1df7f983871c1e1258" "b7919263b40caa3c74dcaec74730bca1c1bcb024" "e08a2eb734e33827dffeecf57eca046cd1091373" "e7dba8c91c1f3257c34d4a7ffff0ea2537aeb6bb")
 CROS_WORKON_PROJECT="chromiumos/platform2"
 CROS_WORKON_LOCALNAME="platform2"
 CROS_WORKON_OUTOFTREE_BUILD=1
@@ -27,9 +27,10 @@ LICENSE="BSD-Google"
 SLOT="0/0"
 KEYWORDS="*"
 IUSE="
-	arcpp arcvm cros_embedded +debugd +encrypted_stateful +encrypted_reboot_vault
-	frecon lvm_stateful_partition kernel-3_18 +midi -s3halt +syslog systemd
-	+udev vivid vtconsole fydeos_factory_install fixcgroup fixcgroup-memory"
+	arcpp arcvm cros_embedded +encrypted_stateful +encrypted_reboot_vault
+	frecon lvm_stateful_partition kernel-3_18 +midi +oobe_config -s3halt +syslog
+  fydeos_factory_install fixcgroup fixcgroup-memory
+	systemd +udev vivid vtconsole"
 
 # secure-erase-file, vboot_reference, and rootdev are needed for clobber-state.
 COMMON_DEPEND="
@@ -55,6 +56,7 @@ RDEPEND="${COMMON_DEPEND}
 	!chromeos-base/chromeos-disableecho
 	chromeos-base/chromeos-common-script
 	chromeos-base/tty
+	oobe_config? ( chromeos-base/oobe_config )
 	sys-apps/upstart
 	!systemd? ( sys-apps/systemd-tmpfiles )
 	sys-process/lsof
@@ -111,6 +113,7 @@ src_install_upstart() {
 		doins upstart/sysrq-init.conf
 
 		if use syslog; then
+			doins upstart/collect-early-logs.conf
 			doins upstart/log-rotate.conf upstart/syslog.conf
 			dotmpfiles tmpfiles.d/syslog.conf
 		fi
@@ -138,12 +141,6 @@ src_install_upstart() {
 		dosbin chromeos-disk-metrics
 		dosbin chromeos-send-kernel-errors
 		dosbin display_low_battery_alert
-	fi
-
-	if ! use debugd; then
-		sed -i '/^env PSTORE_GROUP=/s:=.*:=root:' \
-			"${D}/etc/init/pstore.conf" || \
-			die "Failed to replace PSTORE_GROUP in pstore.conf"
 	fi
 
 	if use midi; then
@@ -239,6 +236,9 @@ pkg_preinst() {
 	# by bootstat and ureadahead.
 	enewuser "debugfs-access"
 	enewgroup "debugfs-access"
+
+	# Create pstore-access group.
+	enewgroup pstore-access
 }
 
 src_prepare() {

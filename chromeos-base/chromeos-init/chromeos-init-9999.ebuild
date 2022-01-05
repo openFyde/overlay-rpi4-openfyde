@@ -1,6 +1,3 @@
-# Copyright (c) 2021, Fyde Innovations Limited. All rights reserved.
-# Distributed under the license specified in the root directory of this project.
-
 # Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
 # Distributed under the terms of the GNU General Public License v2
 
@@ -15,7 +12,7 @@ CROS_WORKON_SUBTREE="common-mk init metrics .gn"
 PLATFORM_NATIVE_TEST="yes"
 PLATFORM_SUBDIR="init"
 
-inherit cros-workon platform user
+inherit tmpfiles cros-workon platform user
 
 DESCRIPTION="Upstart init scripts for Chromium OS"
 HOMEPAGE="https://chromium.googlesource.com/chromiumos/platform2/+/master/init/"
@@ -25,9 +22,9 @@ LICENSE="BSD-Google"
 SLOT="0/0"
 KEYWORDS="~*"
 IUSE="
-	arcpp arcvm cros_embedded +debugd +encrypted_stateful frecon
-	kernel-3_8 kernel-3_10 kernel-3_14 kernel-3_18 +midi
-	-s3halt +syslog systemd +udev vivid vtconsole"
+	arcpp arcvm cros_embedded +encrypted_stateful +encrypted_reboot_vault
+	frecon lvm_stateful_partition kernel-3_18 +midi +oobe_config -s3halt +syslog
+	systemd +udev vivid vtconsole"
 
 # secure-erase-file, vboot_reference, and rootdev are needed for clobber-state.
 COMMON_DEPEND="
@@ -40,6 +37,7 @@ COMMON_DEPEND="
 DEPEND="${COMMON_DEPEND}
 	test? (
 		sys-process/psmisc
+		dev-util/shflags
 		dev-util/shunit2
 		sys-apps/diffutils
 	)
@@ -52,7 +50,9 @@ RDEPEND="${COMMON_DEPEND}
 	!chromeos-base/chromeos-disableecho
 	chromeos-base/chromeos-common-script
 	chromeos-base/tty
+	oobe_config? ( chromeos-base/oobe_config )
 	sys-apps/upstart
+	!systemd? ( sys-apps/systemd-tmpfiles )
 	sys-process/lsof
 	virtual/chromeos-bootcomplete
 	!cros_embedded? (
@@ -95,6 +95,7 @@ src_install_upstart() {
 
 	if use cros_embedded; then
 		doins upstart/startup.conf
+		dotmpfiles tmpfiles.d/chromeos.conf
 		doins upstart/embedded-init/boot-services.conf
 
 		doins upstart/report-boot-complete.conf
@@ -106,14 +107,16 @@ src_install_upstart() {
 		doins upstart/sysrq-init.conf
 
 		if use syslog; then
-			doins upstart/log-rotate.conf upstart/syslog.conf upstart/journald.conf
+			doins upstart/collect-early-logs.conf
+			doins upstart/log-rotate.conf upstart/syslog.conf
+			dotmpfiles tmpfiles.d/syslog.conf
 		fi
 		if use !systemd; then
 			doins upstart/cgroups.conf
 			doins upstart/dbus.conf
+			dotmpfiles tmpfiles.d/dbus.conf
 			if use udev; then
-				doins upstart/udev.conf upstart/udev-trigger.conf
-				doins upstart/udev-trigger-early.conf
+				doins upstart/udev*.conf
 			fi
 		fi
 		if use frecon; then
@@ -121,6 +124,7 @@ src_install_upstart() {
 		fi
 	else
 		doins upstart/*.conf
+		dotmpfiles tmpfiles.d/*.conf
 
 		if ! use arcpp && use arcvm; then
 			sed -i '/^env IS_ARCVM=/s:=0:=1:' \
@@ -133,14 +137,8 @@ src_install_upstart() {
 		dosbin display_low_battery_alert
 	fi
 
-	if ! use debugd; then
-		sed -i '/^env PSTORE_GROUP=/s:=.*:=root:' \
-			"${D}/etc/init/pstore.conf" || \
-			die "Failed to replace PSTORE_GROUP in pstore.conf"
-	fi
-
 	if use midi; then
-		if use kernel-3_8 || use kernel-3_10 || use kernel-3_14 || use kernel-3_18; then
+		if use kernel-3_18; then
 			doins upstart/workaround-init/midi-workaround.conf
 		fi
 	fi
@@ -191,6 +189,20 @@ src_install() {
 	# Install startup/shutdown scripts.
 	dosbin chromeos_startup chromeos_shutdown
 
+	# Disable encrypted reboot vault if it is not used.
+	if ! use encrypted_reboot_vault; then
+		sed -i '/USE_ENCRYPTED_REBOOT_VAULT=/s:=1:=0:' \
+			"${D}/sbin/chromeos_startup" ||
+			die "Failed to replace USE_ENCRYPTED_REBOOT_VAULT in chromeos_startup"
+	fi
+
+	# Enable lvm stateful partition.
+	if use lvm_stateful_partition; then
+		sed -i '/USE_LVM_STATEFUL_PARTITION=/s:=0:=1:' \
+			"${D}/sbin/chromeos_startup" ||
+			die "Failed to replace USE_LVM_STATEFUL_PARTITION in chromeos_startup"
+	fi
+
 	dosbin "${OUT}"/clobber-state
 
 	dosbin clobber-log
@@ -202,6 +214,10 @@ src_install() {
 	insinto /usr/share/cros
 	doins $(usex encrypted_stateful encrypted_stateful \
 		unencrypted_stateful)/startup_utils.sh
+
+	# Install LVM conf files.
+	insinto /etc/lvm
+	doins lvm.conf
 }
 
 pkg_preinst() {
@@ -214,4 +230,7 @@ pkg_preinst() {
 	# by bootstat and ureadahead.
 	enewuser "debugfs-access"
 	enewgroup "debugfs-access"
+
+	# Create pstore-access group.
+	enewgroup pstore-access
 }
