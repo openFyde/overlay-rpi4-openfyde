@@ -18,9 +18,7 @@ RDEPEND="
   net-misc/fydeos-remote-help
   chromeos-base/fydeos-dev-remote-patch
   chromeos-base/fydeos-stateful-updater
-  chromeos-base/license-utils
   chromeos-base/google-drive-fs
-  chromeos-base/fydeos-opengapps-scripts
   chromeos-base/baseboard-bsp
   virtual/fyde-packages
   virtual/fydemina
