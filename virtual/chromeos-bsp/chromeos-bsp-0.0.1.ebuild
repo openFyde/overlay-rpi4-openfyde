@@ -15,13 +15,10 @@ RDEPEND="
   chromeos-base/fydeos-console-issue
   chromeos-base/fydeos-default-apps
   chromeos-base/fydeos-utils
-  chromeos-base/google-drive-fs
   net-misc/patch-tlsdate
   net-misc/fydeos-remote-help
   chromeos-base/fydeos-dev-remote-patch
   chromeos-base/fydeos-stateful-updater
-  #chromeos-base/license-utils
-  chromeos-base/fydeos-opengapps-scripts
   chromeos-base/baseboard-bsp
   virtual/fyde-packages
   virtual/fydemina
