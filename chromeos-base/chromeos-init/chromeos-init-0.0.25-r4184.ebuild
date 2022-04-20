@@ -2,6 +2,8 @@
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
+CROS_WORKON_COMMIT="ed3cbd39d08fafc9793396934088ef152c74ccc3"
+CROS_WORKON_TREE=("52a8a8b6d3bbca5e90d4761aa308a5541d52b1bb" "0be9b01657e3488badf97e2e2160b2c16db87cef" "8d228c8e702aebee142bcbf0763a15786eb5b3bb" "e7dba8c91c1f3257c34d4a7ffff0ea2537aeb6bb")
 CROS_WORKON_PROJECT="chromiumos/platform2"
 CROS_WORKON_LOCALNAME="platform2"
 CROS_WORKON_OUTOFTREE_BUILD=1
@@ -20,11 +22,12 @@ SRC_URI=""
 
 LICENSE="BSD-Google"
 SLOT="0/0"
-KEYWORDS="~*"
+KEYWORDS="*"
 IUSE="
-	cros_embedded +encrypted_stateful +encrypted_reboot_vault
-	frecon lvm_stateful_partition kernel-3_18 +midi +oobe_config -s3halt +syslog
-	systemd +udev vivid vtconsole"
+	arcpp arcvm cros_embedded +debugd +encrypted_stateful +encrypted_reboot_vault
+	frecon -lvm_stateful_partition kernel-3_8 kernel-3_10 kernel-3_14
+	kernel-3_18 +midi -s3halt +syslog systemd +udev vivid vtconsole
+  fydeos_factory_install fixcgroup fixcgroup-memory"
 
 # secure-erase-file, vboot_reference, and rootdev are needed for clobber-state.
 COMMON_DEPEND="
@@ -37,7 +40,6 @@ COMMON_DEPEND="
 DEPEND="${COMMON_DEPEND}
 	test? (
 		sys-process/psmisc
-		dev-util/shflags
 		dev-util/shunit2
 		sys-apps/diffutils
 	)
@@ -50,9 +52,7 @@ RDEPEND="${COMMON_DEPEND}
 	!chromeos-base/chromeos-disableecho
 	chromeos-base/chromeos-common-script
 	chromeos-base/tty
-	oobe_config? ( chromeos-base/oobe_config )
 	sys-apps/upstart
-	!systemd? ( sys-apps/systemd-tmpfiles )
 	sys-process/lsof
 	virtual/chromeos-bootcomplete
 	!cros_embedded? (
@@ -95,7 +95,6 @@ src_install_upstart() {
 
 	if use cros_embedded; then
 		doins upstart/startup.conf
-		dotmpfiles tmpfiles.d/chromeos.conf
 		doins upstart/embedded-init/boot-services.conf
 
 		doins upstart/report-boot-complete.conf
@@ -107,8 +106,7 @@ src_install_upstart() {
 		doins upstart/sysrq-init.conf
 
 		if use syslog; then
-			doins upstart/collect-early-logs.conf
-			doins upstart/log-rotate.conf upstart/syslog.conf
+			doins upstart/log-rotate.conf upstart/syslog.conf upstart/journald.conf
 			dotmpfiles tmpfiles.d/syslog.conf
 		fi
 		if use !systemd; then
@@ -116,7 +114,8 @@ src_install_upstart() {
 			doins upstart/dbus.conf
 			dotmpfiles tmpfiles.d/dbus.conf
 			if use udev; then
-				doins upstart/udev*.conf
+				doins upstart/udev.conf upstart/udev-trigger.conf
+				doins upstart/udev-trigger-early.conf
 			fi
 		fi
 		if use frecon; then
@@ -137,8 +136,14 @@ src_install_upstart() {
 		dosbin display_low_battery_alert
 	fi
 
+	if ! use debugd; then
+		sed -i '/^env PSTORE_GROUP=/s:=.*:=root:' \
+			"${D}/etc/init/pstore.conf" || \
+			die "Failed to replace PSTORE_GROUP in pstore.conf"
+	fi
+
 	if use midi; then
-		if use kernel-3_18; then
+		if use kernel-3_8 || use kernel-3_10 || use kernel-3_14 || use kernel-3_18; then
 			doins upstart/workaround-init/midi-workaround.conf
 		fi
 	fi
@@ -216,8 +221,10 @@ src_install() {
 		unencrypted_stateful)/startup_utils.sh
 
 	# Install LVM conf files.
-	insinto /etc/lvm
-	doins lvm.conf
+	if use lvm_stateful_partition; then
+		insinto /etc/lvm
+		doins lvm.conf
+	fi
 }
 
 pkg_preinst() {
@@ -230,7 +237,23 @@ pkg_preinst() {
 	# by bootstat and ureadahead.
 	enewuser "debugfs-access"
 	enewgroup "debugfs-access"
+}
 
-	# Create pstore-access group.
-	enewgroup pstore-access
+src_prepare() {
+  if use fydeos_factory_install; then
+    eapply ${FILESDIR}/insert_factory_install_script.patch
+    eapply ${FILESDIR}/set_default_language_to_zh.patch
+    if [ -n "${FYDEOS_FACTORY_INSTALL}" ]; then
+      echo $FYDEOS_FACTORY_INSTALL > $FYDEOS_INSTALL_FILE
+    fi
+  fi
+  if use fixcgroup; then
+    eapply -p2 ${FILESDIR}/cgroups_cpuset.patch
+  fi
+  if use fixcgroup-memory; then
+    eapply -p2 ${FILESDIR}/fix_cgroup_memory.patch
+  fi
+  eapply -p2 ${FILESDIR}/change_splash_background_color_black.patch
+  eapply -p2 ${FILESDIR}/block_frecon_vtconsole.patch
+  default
 }

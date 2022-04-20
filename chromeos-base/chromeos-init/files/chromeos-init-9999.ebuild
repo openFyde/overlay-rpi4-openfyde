@@ -22,7 +22,7 @@ LICENSE="BSD-Google"
 SLOT="0/0"
 KEYWORDS="~*"
 IUSE="
-	cros_embedded +encrypted_stateful +encrypted_reboot_vault
+	arcpp arcvm cros_embedded +encrypted_stateful +encrypted_reboot_vault
 	frecon lvm_stateful_partition kernel-3_18 +midi +oobe_config -s3halt +syslog
 	systemd +udev vivid vtconsole"
 
