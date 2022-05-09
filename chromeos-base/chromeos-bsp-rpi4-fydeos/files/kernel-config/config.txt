@@ -19,6 +19,10 @@ dtoverlay=vc4-kms-v3d-pi4
 #enable_uart=1
 #start_debug=1
 
+# Uncomment the following lines to enable overclocking
+# over_voltage=8
+# arm_freq=2147
+
 arm_64bit=1
 max_framebuffers=2
 kernel=kernel8_a.img
