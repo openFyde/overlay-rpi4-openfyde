@@ -649,18 +649,6 @@ add_api_keys() {
 	)
 }
 
-restore_third_party_ffmpeg() {
-	local ffmpeg_dir="${CHROME_ROOT}/src/third_party/ffmpeg"
-	{ git -C "${ffmpeg_dir}" restore . && git -C "${ffmpeg_dir}" clean -fd; } \
-		|| ewarn "Failed to restore ffmpeg"
-}
-
-patch_third_party_ffmpeg() {
-	einfo "patching for third-party ffmpeg..."
-	restore_third_party_ffmpeg
-	eapply ${FILESDIR}/patches/0034-0-add-rpi-hardware-decoder-ffmpeg.patch
-}
-
 src_prepare() {
 	# Must call eapply_user in EAPI 7, but this function is a no-op here.
 	eapply_user
@@ -702,8 +690,6 @@ src_prepare() {
 			add_api_keys "${GAPI_CONFIG_FILE}"
 		fi
 	fi
-
-	patch_third_party_ffmpeg
 }
 
 setup_test_lists() {
@@ -1050,8 +1036,6 @@ src_compile() {
 
 		autotest_src_compile
 	fi
-
-	restore_third_party_ffmpeg
 }
 
 install_test_resources() {
