@@ -1,3 +1,6 @@
+# Copyright (c) 2022 Fyde Innovations Limited and the openFyde Authors.
+# Distributed under the license specified in the root directory of this project.
+
 # Copyright 2012 The Chromium OS Authors. All rights reserved.
 # Distributed under the terms of the GNU General Public License v2
 
@@ -23,7 +26,7 @@ SRC_URI=""
 
 LICENSE="BSD-Google chrome_internal? ( Google-TOS )"
 SLOT="0"
-KEYWORDS="~*"
+KEYWORDS="*"
 IUSE="
 	+afdo_use
 	afdo_verify
@@ -187,6 +190,7 @@ RDEPEND="${RDEPEND}
 	oobe_config? ( chromeos-base/oobe_config )
 	iioservice? ( chromeos-base/iioservice )
 	hibernate? ( chromeos-base/hiberman )
+	media-libs/raspberrypi-userland
 	"
 
 DEPEND="${DEPEND}
@@ -677,11 +681,15 @@ add_api_keys() {
 	local api_key=$(awk "/google_api_key/ ${EXTRACT}" "$1")
 	local client_id=$(awk "/google_default_client_id/ ${EXTRACT}" "$1")
 	local client_secret=$(awk "/google_default_client_secret/ ${EXTRACT}" "$1")
+	local fydeos_client_id=$(awk "/fydeos_default_client_id/ ${EXTRACT}" "$1")
+	local fydeos_client_secret=$(awk "/fydeos_default_client_secret/ ${EXTRACT}" "$1")
 
 	BUILD_STRING_ARGS+=(
 		"google_api_key=${api_key}"
 		"google_default_client_id=${client_id}"
 		"google_default_client_secret=${client_secret}"
+		"fydeos_default_client_id=${fydeos_client_id}"
+		"fydeos_default_client_secret=${fydeos_client_secret}"
 	)
 }
 
@@ -844,6 +852,9 @@ setup_compile_flags() {
 		append-cxxflags "-stdlib=libc++"
 		append-ldflags "-stdlib=libc++"
 	fi
+
+	#link flags for raspberry mmal video decoder layer in ffmpeg
+	append-ldflags -lmmal -lmmal_core -lmmal_util -lmmal_vc_client -lbcm_host
 
 	# Workaround: Disable fatal linker warnings on arm64/lld.
 	# https://crbug.com/913071

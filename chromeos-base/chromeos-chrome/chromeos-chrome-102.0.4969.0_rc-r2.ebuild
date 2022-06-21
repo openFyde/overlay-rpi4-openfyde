@@ -1,6 +1,3 @@
-# Copyright (c) 2022 Fyde Innovations Limited and the openFyde Authors.
-# Distributed under the license specified in the root directory of this project.
-
 # Copyright 2012 The Chromium OS Authors. All rights reserved.
 # Distributed under the terms of the GNU General Public License v2
 
@@ -17,8 +14,7 @@
 
 EAPI=7
 
-# TODO(crbug.com/984182): We force Python 2 because depot_tools doesn't support Python 3.
-PYTHON_COMPAT=( python2_7 )
+PYTHON_COMPAT=( python3_{6..9} )
 inherit autotest-deponly binutils-funcs chromium-source cros-credentials cros-constants cros-sanitizers eutils flag-o-matic git-2 multilib toolchain-funcs user python-any-r1 multiprocessing
 
 DESCRIPTION="Open-source version of Google Chrome web browser"
@@ -33,6 +29,7 @@ IUSE="
 	afdo_verify
 	+accessibility
 	app_shell
+	arc_hw_oemcrypto
 	asan
 	+authpolicy
 	+build_tests
@@ -51,6 +48,8 @@ IUSE="
 	debug_fission
 	+dwarf5
 	+fonts
+	hibernate
+	hw_details
 	goma
 	goma_thinlto
 	+highdpi
@@ -69,10 +68,13 @@ IUSE="
 	orderfile_generate
 	+orderfile_use
 	orderfile_verify
+	remoteexec
 	+runhooks
 	strict_toolchain_checks
+	subpixel_rendering
 	+thinlto
 	touchview
+	tpm_dynamic
 	ubsan
 	v4l2_codec
 	v4lplugin
@@ -85,6 +87,7 @@ REQUIRED_USE="
 	cfi? ( thinlto )
 	afdo_verify? ( !afdo_use )
 	orderfile_generate? ( !orderfile_use )
+	?? ( goma remoteexec )
 	"
 
 OZONE_PLATFORM_PREFIX=ozone_platform_
@@ -140,6 +143,7 @@ add_orderfiles
 
 RDEPEND="${RDEPEND}
 	app-arch/bzip2
+	app-arch/sharutils
 	app-crypt/mit-krb5
 	app-misc/edid-decode
 	authpolicy? ( chromeos-base/authpolicy )
@@ -182,7 +186,7 @@ RDEPEND="${RDEPEND}
 	)
 	oobe_config? ( chromeos-base/oobe_config )
 	iioservice? ( chromeos-base/iioservice )
-	media-libs/raspberrypi-userland
+	hibernate? ( chromeos-base/hiberman )
 	"
 
 DEPEND="${DEPEND}
@@ -223,9 +227,14 @@ echox() {
 echotf() { echox ${1:-$?} true false ; }
 usetf()  { usex $1 true false ; }
 
+use_remoteexec() {
+	[[ "${USE_REMOTEEXEC:-$(usetf remoteexec)}" == "true" ]]
+}
+
 use_goma() {
 	[[ "${USE_GOMA:-$(usetf goma)}" == "true" ]]
 }
+
 should_upload_build_logs() {
 	[[ -n "${GOMA_TMP_DIR}" && -n "${GLOG_log_dir}" && \
 		"${GLOG_log_dir}" == "${GOMA_TMP_DIR}"* ]]
@@ -248,6 +257,7 @@ set_build_args() {
 		"is_debug=false"
 		"${EXTRA_GN_ARGS}"
 		"enable_pseudolocales=$(usetf cros-debug)"
+		"use_arc_protected_media=$(usetf arc_hw_oemcrypto)"
 		"use_chromeos_protected_av1=$(usetf intel_oemcrypto)"
 		"use_chromeos_protected_media=$(usetf cdm_factory_daemon)"
 		"use_iioservice=$(usetf iioservice)"
@@ -257,6 +267,7 @@ set_build_args() {
 		"use_xkbcommon=$(usetf xkbcommon)"
 		"enable_remoting=$(usetf chrome_remoting)"
 		"enable_nacl=$(use_nacl; echotf)"
+		"enable_hibernate=$(usetf hibernate)"
 		# use_system_minigbm is set below.
 
 		"is_cfm=$(usetf cfm)"
@@ -281,6 +292,12 @@ set_build_args() {
 
 		# Add libinput to handle touchpad.
 		"use_libinput=$(usetf libinput)"
+
+		# Enable NSS slots software fallback when we are using runtime TPM selection.
+		"nss_slots_software_fallback=$(usetf tpm_dynamic)"
+
+		# Add hardware information to feedback logs and chrome://system.
+		"is_chromeos_with_hw_details=$(usetf hw_details)"
 	)
 
 	# BUILD_STRING_ARGS needs appropriate quoting. So, we keep them separate and
@@ -315,7 +332,7 @@ set_build_args() {
 		BUILD_ARGS+=( "use_system_minigbm=true" )
 		BUILD_ARGS+=( "use_system_libdrm=true" )
 	fi
-	if use "touchview"; then
+	if ! use "subpixel_rendering" || use "touchview"; then
 		BUILD_ARGS+=( "subpixel_font_rendering_disabled=true" )
 	fi
 
@@ -416,6 +433,16 @@ set_build_args() {
 		fi
 	fi
 
+	if use_remoteexec; then
+		BUILD_ARGS+=(
+			"use_remoteexec=true"
+			"use_rbe=true"
+		)
+		BUILD_STRING_ARGS+=(
+			"rbe_cc_cfg_file=${CHROME_ROOT}/src/buildtools/reclient_cfgs/rewrapper_chroot_compile.cfg"
+		)
+	fi
+
 	if use chrome_debug; then
 		# Use debug fission to avoid 4GB limit of ELF32 (see crbug.com/595763).
 		# Using -g1 causes problems with crash server (see crbug.com/601854).
@@ -498,7 +525,13 @@ src_unpack() {
 	echo
 	ewarn "If you want to develop or hack on the browser itself, you should follow the"
 	ewarn "simple chrome workflow instead of using emerge:"
-	ewarn "https://chromium.googlesource.com/chromiumos/docs/+/master/simple_chrome_workflow.md"
+	ewarn "https://chromium.googlesource.com/chromiumos/docs/+/HEAD/simple_chrome_workflow.md"
+	ewarn ""
+	ewarn "Otherwise, if you have a Chrome checkout already present on your machine, you can"
+	ewarn "re-enter the cros_sdk with the --chrome-root arg and set CHROME_ORIGIN to"
+	ewarn "LOCAL_SOURCE. This will bypass the lengthy sync_chrome phase here."
+	ewarn "Note: when using --chrome-root, the ebuild won't update or modify the Chrome checkout."
+	ewarn "So make sure it's at a compatible Chrome version before proceeding."
 	echo
 
 	tc-export CC CXX
@@ -531,7 +564,7 @@ src_unpack() {
 
 	case "${CHROME_ORIGIN}" in
 	LOCAL_SOURCE|SERVER_SOURCE|LOCAL_BINARY)
-		elog "CHROME_ORIGIN VALUE is ${CHROME_ORIGIN}"
+		einfo "CHROME_ORIGIN VALUE is ${CHROME_ORIGIN}"
 		;;
 	*)
 		die "CHROME_ORIGIN not one of LOCAL_SOURCE, SERVER_SOURCE, LOCAL_BINARY"
@@ -637,15 +670,11 @@ add_api_keys() {
 	local api_key=$(awk "/google_api_key/ ${EXTRACT}" "$1")
 	local client_id=$(awk "/google_default_client_id/ ${EXTRACT}" "$1")
 	local client_secret=$(awk "/google_default_client_secret/ ${EXTRACT}" "$1")
-	local fydeos_client_id=$(awk "/fydeos_default_client_id/ ${EXTRACT}" "$1")
-	local fydeos_client_secret=$(awk "/fydeos_default_client_secret/ ${EXTRACT}" "$1")
 
 	BUILD_STRING_ARGS+=(
 		"google_api_key=${api_key}"
 		"google_default_client_id=${client_id}"
 		"google_default_client_secret=${client_secret}"
-		"fydeos_default_client_id=${fydeos_client_id}"
-		"fydeos_default_client_secret=${fydeos_client_secret}"
 	)
 }
 
@@ -701,6 +730,7 @@ setup_test_lists() {
 		jpeg_decode_accelerator_unittest
 		ozone_gl_unittests
 		sandbox_linux_unittests
+		wayland_client_integration_tests
 		wayland_client_perftests
 	)
 
@@ -721,6 +751,12 @@ setup_test_lists() {
 		TEST_FILES+=(
 			decode_test
 			vaapi_unittest
+		)
+	fi
+
+	if use v4l2_codec; then
+		TEST_FILES+=(
+			v4l2_stateless_decoder
 		)
 	fi
 
@@ -802,9 +838,6 @@ setup_compile_flags() {
 		append-ldflags "-stdlib=libc++"
 	fi
 
-	#link flags for raspberry mmal video decoder layer in ffmpeg
-	append-ldflags -lmmal -lmmal_core -lmmal_util -lmmal_vc_client -lbcm_host
-
 	# Workaround: Disable fatal linker warnings on arm64/lld.
 	# https://crbug.com/913071
 	use arm64 && append-ldflags "-Wl,--no-fatal-warnings"
@@ -861,10 +894,6 @@ src_configure() {
 	export PATH=${PATH}:${DEPOT_TOOLS}
 
 	export DEPOT_TOOLS_GSUTIL_BIN_DIR="${CHROME_CACHE_DIR}/gsutil_bin"
-	# The venv logic seems to misbehave when cross-compiling.  Since our SDK
-	# should include all the necessary modules, just disable it (for now).
-	# https://crbug.com/808434
-	export VPYTHON_BYPASS="manually managed python not supported by chrome operations"
 
 	# TODO(rcui): crosbug.com/20435. Investigate removal of runhooks
 	# useflag when chrome build switches to Ninja inside the chroot.
@@ -943,10 +972,10 @@ chrome_make() {
 	# between multiple links done by this build (e.g. tests).
 	use thinlto && rm -rf "${build_dir}/thinlto-cache"
 
-	# If goma is enabled, increase the number of parallel run to
-	# 10 * {number of processors}. Though, if it is too large the
+	# If goma or remoteexec is enabled, increase the number of parallel
+	# run to 10 * {number of processors}. Though, if it is too large the
 	# performance gets slow down, so limit by 200 heuristically.
-	if use_goma; then
+	if use_goma || use_remoteexec; then
 		local num_parallel=$(($(nproc) * 10))
 		local j_limit=200
 		set -- -j $((num_parallel < j_limit ? num_parallel : j_limit)) "$@"
@@ -977,6 +1006,7 @@ chrome_make() {
 	# Still use a script to check if the orderfile is used properly, i.e.
 	# Builtin_ functions are placed between the markers, etc.
 	if use strict_toolchain_checks && (use orderfile_use || use orderfile_verify); then
+		einfo "Verifying orderfile..."
 		"${FILESDIR}/check_orderfile.py" "${build_dir}/chrome" || die
 	fi
 }
@@ -1156,7 +1186,7 @@ install_telemetry_dep_resources() {
 		CROS_DEPS=${CHROME_ROOT}/src/tools/cros/bootstrap_deps
 		# sed removes the leading path including src/ converting it to relative.
 		# To avoid silent failures assert the success.
-		DEPS_LIST=$(python ${FIND_DEPS} ${PERF_DEPS} ${CROS_DEPS} | \
+		DEPS_LIST=$(${FIND_DEPS} ${PERF_DEPS} ${CROS_DEPS} | \
 			sed -e 's|^'${CHROME_ROOT}/src/'||'; assert)
 		install_test_resources "${test_dir}" "${DEPS_LIST}"
 		# For crosperf, which uses some tests only available on internal builds.
@@ -1174,7 +1204,15 @@ install_telemetry_dep_resources() {
 
 	# When copying only a portion of the Chrome source that telemetry needs,
 	# some symlinks can end up broken. Thus clean these up before packaging.
+	einfo "Cleaning up broken symlinks in telemetry"
 	find -L "${test_dir}" -type l -delete
+
+	# Unfortunately we are sometimes provided with unrelated upstream directories
+	# and binaries taking a lot of space. Clean these up manually. Notice
+	# that Android and Linux directories might be needed so keep those.
+	einfo "Cleaning up non-Chrome OS directories in telemetry"
+	find -L "${test_dir}" -type d -regex ".*/\(mac\|mips\|mips64\|win\)" -exec rm -rfv {} \;
+	einfo "Finished installing telemetry dep resources"
 }
 
 # Add any new artifacts generated by the Chrome build targets to deploy_chrome.py.
@@ -1375,6 +1413,7 @@ src_install() {
 	# chromeos-base/chrome-icu is responsible for installing the icu
 	# data, so we remove it from ${D} here.
 	rm "${D_CHROME_DIR}/icudtl.dat" || die
+	rm "${D_CHROME_DIR}/icudtl.dat.hash" || die
 }
 
 pkg_preinst() {
@@ -1387,7 +1426,7 @@ pkg_preinst() {
 
 	# Non-internal builds come with >10MB of unwinding info built-in. Size
 	# checks on those are less profitable.
-	if [[ ${CHROME_SIZE} -ge 250000000 && -z "${KEEP_CHROME_DEBUG_SYMBOLS}" ]] && use chrome_internal && ! use chrome_dcheck; then
+	if [[ ${CHROME_SIZE} -ge 300000000 && -z "${KEEP_CHROME_DEBUG_SYMBOLS}" ]] && use chrome_internal && ! use chrome_dcheck; then
 		die "Installed chrome binary got suspiciously large (size=${CHROME_SIZE})."
 	fi
 	if use arm; then
