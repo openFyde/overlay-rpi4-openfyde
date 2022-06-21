@@ -1,6 +1,3 @@
-# Copyright (c) 2022 Fyde Innovations Limited and the openFyde Authors.
-# Distributed under the license specified in the root directory of this project.
-
 # Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
 # Distributed under the terms of the GNU General Public License v2
 
@@ -18,22 +15,25 @@ PLATFORM_SUBDIR="init"
 inherit tmpfiles cros-workon platform user
 
 DESCRIPTION="Upstart init scripts for Chromium OS"
-HOMEPAGE="https://chromium.googlesource.com/chromiumos/platform2/+/master/init/"
+HOMEPAGE="https://chromium.googlesource.com/chromiumos/platform2/+/HEAD/init/"
 SRC_URI=""
 
 LICENSE="BSD-Google"
 SLOT="0/0"
 KEYWORDS="~*"
 IUSE="
-	arcpp arcvm cros_embedded +encrypted_stateful +encrypted_reboot_vault
-	frecon lvm_stateful_partition kernel-3_18 +midi +oobe_config -s3halt +syslog
-	systemd +udev vivid vtconsole"
+	arcpp arcvm cros_embedded direncryption +encrypted_stateful
+	+encrypted_reboot_vault frecon fsverity lvm_stateful_partition
+	+oobe_config prjquota -s3halt +syslog systemd tpm2 +udev vivid vtconsole"
 
 # secure-erase-file, vboot_reference, and rootdev are needed for clobber-state.
+# re2 is needed for process_killer.
 COMMON_DEPEND="
+	chromeos-base/bootstat:=
 	>=chromeos-base/metrics-0.0.1-r3152:=
 	chromeos-base/secure-erase-file:=
 	chromeos-base/vboot_reference:=
+	dev-libs/re2:=
 	sys-apps/rootdev:=
 "
 
@@ -49,7 +49,6 @@ DEPEND="${COMMON_DEPEND}
 RDEPEND="${COMMON_DEPEND}
 	app-arch/tar
 	app-misc/jq
-	chromeos-base/bootstat
 	!chromeos-base/chromeos-disableecho
 	chromeos-base/chromeos-common-script
 	chromeos-base/tty
@@ -85,7 +84,9 @@ platform_pkg_test() {
 		clobber_state_test
 		file_attrs_cleaner_test
 		periodic_scheduler_test
+		process_killer_test
 		usermode-helper_test
+		utils_test
 	)
 
 	for test_bin in "${cpp_tests[@]}"; do
@@ -140,12 +141,6 @@ src_install_upstart() {
 		dosbin display_low_battery_alert
 	fi
 
-	if use midi; then
-		if use kernel-3_18; then
-			doins upstart/workaround-init/midi-workaround.conf
-		fi
-	fi
-
 	if use s3halt; then
 		newins upstart/halt/s3halt.conf halt.conf
 	else
@@ -162,6 +157,7 @@ src_install_upstart() {
 src_install() {
 	# Install helper to run periodic tasks.
 	dobin "${OUT}"/periodic_scheduler
+	dobin "${OUT}"/process_killer
 
 	if use syslog; then
 		# Install log cleaning script and run it daily.
@@ -190,19 +186,21 @@ src_install() {
 	dosbin "${OUT}"/usermode-helper
 
 	# Install startup/shutdown scripts.
-	dosbin chromeos_startup chromeos_shutdown
+	dosbin "${OUT}"/chromeos_startup
+	dosbin chromeos_startup.sh
+	dosbin chromeos_shutdown
 
 	# Disable encrypted reboot vault if it is not used.
 	if ! use encrypted_reboot_vault; then
 		sed -i '/USE_ENCRYPTED_REBOOT_VAULT=/s:=1:=0:' \
-			"${D}/sbin/chromeos_startup" ||
+			"${D}/sbin/chromeos_startup.sh" ||
 			die "Failed to replace USE_ENCRYPTED_REBOOT_VAULT in chromeos_startup"
 	fi
 
 	# Enable lvm stateful partition.
 	if use lvm_stateful_partition; then
 		sed -i '/USE_LVM_STATEFUL_PARTITION=/s:=0:=1:' \
-			"${D}/sbin/chromeos_startup" ||
+			"${D}/sbin/chromeos_startup.sh" ||
 			die "Failed to replace USE_LVM_STATEFUL_PARTITION in chromeos_startup"
 	fi
 

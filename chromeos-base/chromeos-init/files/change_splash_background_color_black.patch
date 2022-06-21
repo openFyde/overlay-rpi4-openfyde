@@ -1,11 +1,13 @@
 diff --git a/init/upstart/boot-splash.conf b/init/upstart/boot-splash.conf
-index 3fdcc3312d..f7f5f02aca 100644
+index 95e9d73a89..33c08ba748 100644
 --- a/init/upstart/boot-splash.conf
 +++ b/init/upstart/boot-splash.conf
-@@ -52,5 +52,5 @@ script
-     ARGS="${ARGS} --dev-mode --enable-osc --enable-vts --pre-create-vts"
+@@ -25,7 +25,7 @@ script
+     backlight_tool --set_brightness_percent=40.0 || true
    fi
  
--  frecon --daemon --clear 0xfffefefe ${ARGS} ${BOOT_IMAGES}
-+  frecon --daemon --clear 0xff000000 ${ARGS} ${BOOT_IMAGES}
- end script
+-  BACKGROUND=0xfffefefe
++  BACKGROUND=0xff000000
+   ASSETS=/usr/share/chromeos-assets
+   ASSETS_200=${ASSETS}/images_200_percent
+   ASSETS_100=${ASSETS}/images_100_percent
