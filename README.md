@@ -32,7 +32,7 @@ This repository contains the following packages:
 <br>
 
 
-## About the board `amd64-openfyde`
+## About the board `rpi4-openfyde`
 This board specifically targets: 
 
 - [Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/):
