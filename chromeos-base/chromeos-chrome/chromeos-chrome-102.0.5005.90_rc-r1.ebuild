@@ -681,6 +681,7 @@ add_api_keys() {
 	local api_key=$(awk "/google_api_key/ ${EXTRACT}" "$1")
 	local client_id=$(awk "/google_default_client_id/ ${EXTRACT}" "$1")
 	local client_secret=$(awk "/google_default_client_secret/ ${EXTRACT}" "$1")
+	local fydeos_api_key=$(awk "/fydeos_api_key/ ${EXTRACT}" "$1")
 	local fydeos_client_id=$(awk "/fydeos_default_client_id/ ${EXTRACT}" "$1")
 	local fydeos_client_secret=$(awk "/fydeos_default_client_secret/ ${EXTRACT}" "$1")
 
@@ -688,6 +689,7 @@ add_api_keys() {
 		"google_api_key=${api_key}"
 		"google_default_client_id=${client_id}"
 		"google_default_client_secret=${client_secret}"
+		"fydeos_api_key=${fydeos_api_key}"
 		"fydeos_default_client_id=${fydeos_client_id}"
 		"fydeos_default_client_secret=${fydeos_client_secret}"
 	)
