@@ -3,3 +3,4 @@ media-libs/mesa vulkan
 chromeos-base/vkbench vulkan
 virtual/target-chromium-os-test vulkan
 chromeos-base/tast-use-flags vulkan
+chromeos-base/chromeos-chrome -autotest -build_tests
