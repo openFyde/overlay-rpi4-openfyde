@@ -7,7 +7,7 @@ inherit appid
 DESCRIPTION="empty project"
 HOMEPAGE="https://fydeos.io"
 
-LICENSE="BSD"
+LICENSE="BSD-Fyde"
 SLOT="0"
 KEYWORDS="*"
 IUSE=""
