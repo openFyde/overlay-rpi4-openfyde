@@ -1,12 +1,12 @@
 # Copyright (c) 2022 Fyde Innovations Limited and the openFyde Authors.
 # Distributed under the license specified in the root directory of this project.
 
-# Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
+# Copyright 2011 The ChromiumOS Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
-CROS_WORKON_COMMIT="770a5752c98e825f09877abdefd0803ae885d130"
-CROS_WORKON_TREE=("2345346c6533c29d4e3ee84bc2bf53306247256c" "9fba03fc89bb5e3a13b3615ab24730715e5fc469" "55976c0a11bc37a530f8d4c14ae732300e17ccd9" "e7dba8c91c1f3257c34d4a7ffff0ea2537aeb6bb")
+CROS_WORKON_COMMIT="95cba42c3e39999a02c3534e6924cdd5b8cdc775"
+CROS_WORKON_TREE=("79cdd007ff69259efcaad08803ef2d1498374ec4" "cf309d680997762b7fc5077d9fcce880ff40e7d1" "eb510d666a66e6125e281499b649651b849a25f7" "f91b6afd5f2ae04ee9a2c19109a3a4a36f7659e6")
 CROS_WORKON_PROJECT="chromiumos/platform2"
 CROS_WORKON_LOCALNAME="platform2"
 CROS_WORKON_OUTOFTREE_BUILD=1
@@ -86,18 +86,7 @@ platform_pkg_test() {
 		platform_test "run" "./${test_bin}"
 	done
 
-	local cpp_tests=(
-		clobber_state_test
-		file_attrs_cleaner_test
-		periodic_scheduler_test
-		process_killer_test
-		usermode-helper_test
-		utils_test
-	)
-
-	for test_bin in "${cpp_tests[@]}"; do
-		platform_test "run" "${OUT}/${test_bin}"
-	done
+	platform test_all
 }
 
 src_install_upstart() {
@@ -174,7 +163,7 @@ src_install() {
 	fi
 
 	insinto /usr/share/cros
-	doins *_utils.sh
+	doins ./*_utils.sh
 
 	exeinto /usr/share/cros/init
 	doexe is_feature_enabled.sh
@@ -243,22 +232,22 @@ pkg_preinst() {
 }
 
 src_prepare() {
-  default
-  if use fydeos_factory_install; then
-    eapply -p2 ${FILESDIR}/insert_factory_install_script.patch
-    eapply -p2 ${FILESDIR}/set_default_language_to_zh.patch
-    if [ -n "${FYDEOS_FACTORY_INSTALL}" ]; then
-      echo $FYDEOS_FACTORY_INSTALL > $FYDEOS_INSTALL_FILE
-    fi
-  fi
-  if use fixcgroup; then
-    eapply -p2 ${FILESDIR}/cgroups_cpuset.patch
-  fi
-  if use fixcgroup-memory; then
-    eapply -p2 ${FILESDIR}/fix_cgroup_memory.patch
-  fi
-  eapply -p2 ${FILESDIR}/change_splash_background_color_black.patch
-  if ! use kvm_host; then
-    eapply -p2 ${FILESDIR}/remove_cgroup_crosvm.patch
-  fi
+	default
+	if use fydeos_factory_install; then
+		eapply -p2 ${FILESDIR}/insert_factory_install_script.patch
+		eapply -p2 ${FILESDIR}/set_default_language_to_zh.patch
+		if [ -n "${FYDEOS_FACTORY_INSTALL}" ]; then
+			echo $FYDEOS_FACTORY_INSTALL > $FYDEOS_INSTALL_FILE
+		fi
+	fi
+	if use fixcgroup; then
+		eapply -p2 ${FILESDIR}/cgroups_cpuset.patch
+	fi
+	if use fixcgroup-memory; then
+		eapply -p2 ${FILESDIR}/fix_cgroup_memory.patch
+	fi
+	eapply -p2 ${FILESDIR}/change_splash_background_color_black.patch
+	if ! use kvm_host; then
+		eapply -p2 ${FILESDIR}/remove_cgroup_crosvm.patch
+	fi
 }

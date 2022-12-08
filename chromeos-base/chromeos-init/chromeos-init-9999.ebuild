@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
+# Copyright 2011 The ChromiumOS Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -80,18 +80,7 @@ platform_pkg_test() {
 		platform_test "run" "./${test_bin}"
 	done
 
-	local cpp_tests=(
-		clobber_state_test
-		file_attrs_cleaner_test
-		periodic_scheduler_test
-		process_killer_test
-		usermode-helper_test
-		utils_test
-	)
-
-	for test_bin in "${cpp_tests[@]}"; do
-		platform_test "run" "${OUT}/${test_bin}"
-	done
+	platform test_all
 }
 
 src_install_upstart() {
@@ -168,7 +157,7 @@ src_install() {
 	fi
 
 	insinto /usr/share/cros
-	doins *_utils.sh
+	doins ./*_utils.sh
 
 	exeinto /usr/share/cros/init
 	doexe is_feature_enabled.sh
