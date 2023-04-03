@@ -49,6 +49,7 @@ arm_64bit=1
 max_framebuffers=2
 kernel=kernel8_a.img
 disable_splash=1
+arm_boost=1
 
 # Supported MIPI Cameras
 # 1. Raspberry Pi Camera V2:
