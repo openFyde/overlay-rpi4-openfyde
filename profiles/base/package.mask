@@ -7,7 +7,6 @@ chromeos-base/cros-disks::patches
 chromeos-base/vm_host_tools::patches
 chromeos-base/chromeos-init::patches
 chromeos-base/cros-disks::openfyde-patches
-chromeos-base/vm_host_tools::openfyde-patches
 chromeos-base/chromeos-init::openfyde-patches
 chromeos-base/chromeos-init::chromiumos
 virtual/chromeos-bsp::rpi4
