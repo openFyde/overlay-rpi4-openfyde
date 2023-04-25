@@ -12,7 +12,6 @@ KEYWORDS="*"
 IUSE=""
 
 RDEPEND="
-  app-i18n/rime-server
   chromeos-base/baseboard-bsp
   app-editors/nano
   chromeos-base/edit-pi-config
