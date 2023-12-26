@@ -17,7 +17,7 @@ RDEPEND="
   chromeos-base/edit-pi-config
   virtual/fydemina
   chromeos-base/auto-expand-partition
-  chromeos-base/chromeos-bsp-rpi4-openfyde-base
+  chromeos-base/chromeos-bsp-rpi4-openfyde
 "
 
 DEPEND="${RDEPEND}"

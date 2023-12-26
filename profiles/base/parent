@@ -1,3 +1,4 @@
+baseboard-rpi3:base
 openfyde:base
+rpi4:base
 archero:base
-rpi4-openfyde-base:base

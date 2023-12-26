@@ -1,1 +1,2 @@
 app-emulation/archero archero-arm64-force archero-broadcom
+media-libs/arc-mesa -video_cards_vc4 -llvm -vulkan

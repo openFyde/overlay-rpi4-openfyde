@@ -28,7 +28,7 @@ This repository contains the following packages:
 | chromeos-base/chromeos-bsp-rpi4-openfyde | drivers, config files for Raspberry Pi 4              |                                                                                                                                                |
 | virtual/chromeos-bsp                     | Generic ebuild which satisifies virtual/chromeos-bsp. | [chromiumos-overlay](https://chromium.googlesource.com/chromiumos/overlays/chromiumos-overlay/+/refs/heads/main/virtual/chromeos-bsp)          |
 | virtual/chromeos-config-bsp              | Chrome OS BSP config virtual package                  |                                                                                                                                                |
-| metadata/layout.conf                     | metadata about inheritance and overlay                | [overlay-rpi4-openfyde-base](https://github.com/openFyde/overlay-rpi4-openfyde-base)                                                           |
+| metadata/layout.conf                     | metadata about inheritance and overlay                |                                                         |
 
 
 <br>
