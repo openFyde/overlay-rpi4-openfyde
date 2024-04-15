@@ -1,3 +1,4 @@
+chromiumos:features/selinux
+rpi4:base
 openfyde:base
 archero:base
-rpi4-openfyde-base:base
