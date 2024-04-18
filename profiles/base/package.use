@@ -1,3 +1,3 @@
 app-emulation/archero archero-arm64-force archero-broadcom
 chromeos-base/auto-expand-partition force
-chromeos-base/chromeos-chrome -build_tests
+chromeos-base/chromeos-chrome -build_tests -autotest
