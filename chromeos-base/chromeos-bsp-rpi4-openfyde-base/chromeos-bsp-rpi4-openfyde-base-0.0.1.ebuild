@@ -14,7 +14,6 @@ IUSE=""
 RDEPEND="
     chromeos-base/device-appid
     chromeos-base/bluetooth-input-fix
-    chromeos-base/raspberry-bootloader-update
 "
 
 DEPEND="${RDEPEND}"
